@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GoVoting - Buat Polling</title>
+    <link rel="stylesheet" href="/assets/css/output.css">
+</head>
+<body class="bg-slate-50 dark:bg-slate-950 transition-colors duration-500">
+<nav class="p-6 border-b dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto flex justify-between items-center">
+        <h1 class="text-2xl font-black text-indigo-600 tracking-tighter">GoVoting</h1>
+        <button id="theme-toggle" class="p-3 bg-slate-100 dark:bg-slate-800 rounded-2xl hover:scale-110 transition-all">
+            <i data-lucide="moon" class="dark:hidden"></i>
+            <i data-lucide="sun" class="hidden dark:block text-yellow-400"></i>
+        </button>
+    </div>
+</nav>
+
+<main class="max-w-4xl mx-auto p-8">
+    <div class="bg-white dark:bg-slate-900 p-10 rounded-[3rem] shadow-xl border dark:border-slate-800">
+        <h2 class="text-4xl font-black mb-2 dark:text-white">Buat Polling Baru</h2>
+        <p class="text-slate-500 mb-10">Mulai voting instan dalam hitungan detik.</p>
+
+        <form action="/create-poll" method="POST" class="space-y-6">
+            <div>
+                <label class="block font-bold mb-2 dark:text-slate-300 text-sm uppercase tracking-wider">Judul Voting</label>
+                <input type="text" name="title" required placeholder="Contoh: Menu Makan Siang" class="w-full p-4 bg-slate-50 dark:bg-slate-800 border dark:border-slate-700 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all dark:text-white">
+            </div>
+            <div>
+                <label class="block font-bold mb-2 dark:text-slate-300 text-sm uppercase tracking-wider">Deskripsi</label>
+                <textarea name="description" placeholder="Opsional..." class="w-full p-4 bg-slate-50 dark:bg-slate-800 border dark:border-slate-700 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white"></textarea>
+            </div>
+            <div id="options-container" class="space-y-3">
+                <label class="block font-bold mb-2 dark:text-slate-300 text-sm uppercase tracking-wider">Pilihan</label>
+                <input type="text" name="options[]" required placeholder="Opsi 1" class="w-full p-4 bg-white dark:bg-slate-800 border dark:border-slate-700 rounded-xl dark:text-white">
+                <input type="text" name="options[]" required placeholder="Opsi 2" class="w-full p-4 bg-white dark:bg-slate-800 border dark:border-slate-700 rounded-xl dark:text-white">
+            </div>
+            <button type="button" onclick="addOption()" class="text-indigo-600 dark:text-indigo-400 font-bold flex items-center gap-2 hover:underline">
+                <i data-lucide="plus-circle" size="18"></i> Tambah Opsi
+            </button>
+            <button type="submit" class="w-full bg-indigo-600 text-white p-5 rounded-2xl font-black text-xl shadow-lg shadow-indigo-500/30 active:scale-95 transition-all">
+                Buat Polling & Dapatkan Link
+            </button>
+        </form>
+    </div>
+</main>
+
+<script src="/node_modules/lucide/dist/umd/lucide.min.js"></script>
+<script src="/assets/js/theme.js"></script>
+<script>
+    lucide.createIcons();
+
+    function addOption() {
+        const container = document.getElementById('options-container');
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.name = 'options[]';
+        input.required = true;
+        input.placeholder = `Opsi ${container.getElementsByTagName('input').length + 1}`;
+        input.className = 'w-full p-4 bg-white dark:bg-slate-800 border dark:border-slate-700 rounded-xl dark:text-white animate-pulse';
+        container.appendChild(input);
+
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hasil: {{ .Poll.Title }} - GoVoting</title>
+    <link rel="stylesheet" href="/assets/css/output.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="bg-slate-50 dark:bg-slate-950 transition-colors">
+<main class="max-w-2xl mx-auto p-6 md:p-12">
+    <div class="bg-white dark:bg-slate-900 p-10 rounded-[2.5rem] shadow-xl border dark:border-slate-800">
+        <h1 class="text-3xl font-black mb-2 dark:text-white">{{ .Poll.Title }}</h1>
+        <p class="text-slate-500 dark:text-slate-400 mb-8">Total Suara Masuk: <span class="font-bold text-indigo-600">{{ .TotalVotes }}</span></p>
+
+        <div class="space-y-6">
+            {{ $total := .TotalVotes }}
+            {{ range .Poll.Options }}
+            <div>
+                <div class="flex justify-between mb-2">
+                    <span class="font-bold dark:text-slate-200">{{ .Value }}</span>
+                    <span class="text-indigo-600 font-black">{{ .VoteCount }} Suara</span>
+                </div>
+                <div class="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-4 overflow-hidden">
+                    <div class="bg-indigo-600 h-full transition-all duration-1000"
+                         style="width: {{ if gt $total 0 }}{{ multiply .VoteCount 100 | divide $total }}{{ else }}0{{ end }}%">
+                    </div>
+                </div>
+            </div>
+            {{ end }}
+        </div>
+
+        <a href="/" class="block text-center mt-10 text-slate-400 hover:text-indigo-600 font-bold transition-colors">
+            ← Buat Voting Baru
+        </a>
+    </div>
+</main>
+<script>lucide.createIcons();</script>
+<script src="/assets/js/theme.js"></script>
+</body>
+</html>
