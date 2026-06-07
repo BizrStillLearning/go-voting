@@ -2,152 +2,50 @@ package main
 
 import (
 	"fmt"
-	"html/template"
-	"log"
-	"net/http"
-	"strconv"
-	"time"
 
+	"go-voting/internal/config"
+	"go-voting/internal/controllers"
+	"go-voting/internal/middlewares"
+
+	"github.com/gin-contrib/sessions"
+	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
-	"github.com/gosimple/slug"
-	"gorm.io/driver/mysql"
-	"gorm.io/gorm"
 )
 
-type Poll struct {
-	ID          uint      `gorm:"primaryKey" json:"id"`
-	Title       string    `gorm:"type:varchar(255);not null" json:"title"`
-	Description string    `gorm:"type:text" json:"description"`
-	Slug        string    `gorm:"type:varchar(100);uniqueIndex;not null" json:"slug"`
-	CreatedAt   time.Time `json:"created_at"`
-	Options     []Option  `gorm:"foreignKey:PollID;constraint:OnDelete:CASCADE" json:"options"`
-}
-
-type Option struct {
-	ID        uint   `gorm:"primaryKey" json:"id"`
-	PollID    uint   `json:"poll_id"`
-	Value     string `gorm:"type:varchar(255);not null" json:"value"`
-	VoteCount int    `gorm:"default:0" json:"vote_count"`
-}
-
-type Vote struct {
-	ID         uint      `gorm:"primaryKey" json:"id"`
-	PollID     uint      `gorm:"not null" json:"poll_id"`
-	OptionID   uint      `gorm:"not null" json:"option_id"`
-	Identifier string    `gorm:"type:varchar(255);not null" json:"identifier"`
-	CreatedAt  time.Time `json:"created_at"`
-}
-
-var DB *gorm.DB
-
-func InitDB() {
-	dsn := "root:@tcp(127.0.0.1:3306)/go-voting?charset=utf8mb4&parseTime=True&loc=Local"
-	var err error
-	DB, err = gorm.Open(mysql.Open(dsn), &gorm.Config{})
-	if err != nil {
-		log.Fatalf("Gagal koneksi database: %v", err)
-	}
-	DB.AutoMigrate(&Poll{}, &Option{}, &Vote{})
-	fmt.Println("Database Connected & Migrated!")
-}
-
 func main() {
-	InitDB()
+	config.InitDB()
+
 	r := gin.Default()
 
-	r.SetFuncMap(template.FuncMap{
-		"multiply": func(a, b int) int { return a * b },
-		"divide": func(a, b int) int {
-			if b == 0 {
-				return 0
-			}
-			return a / b
-		},
-	})
+	store := cookie.NewStore([]byte("rahasia-super-aman"))
+	r.Use(sessions.Sessions("govoting_session", store))
 
 	r.Static("/assets", "./assets")
 	r.Static("/node_modules", "./node_modules")
-	r.LoadHTMLGlob("templates/*")
+	r.LoadHTMLGlob("templates/admin/*")
+	r.LoadHTMLGlob("templates/**/*")
 
-	// Page: Home
-	r.GET("/", func(c *gin.Context) {
-		c.HTML(http.StatusOK, "index.html", gin.H{"Title": "GoVoting - Buat Polling"})
-	})
+	r.GET("/login", controllers.ShowLogin)
+	r.POST("/login", controllers.ProcessLogin)
+	r.GET("/logout", controllers.Logout)
 
-	r.POST("/create-poll", func(c *gin.Context) {
-		title := c.PostForm("title")
-		description := c.PostForm("description")
-		options := c.PostFormArray("options[]")
-		pollSlug := slug.Make(title) + "-" + fmt.Sprint(time.Now().Unix())
+	r.GET("/v/:slug", controllers.ShowVotingPage)
+	r.POST("/vote/:poll_id", controllers.ProcessVote)
 
-		err := DB.Transaction(func(tx *gorm.DB) error {
-			newPoll := Poll{Title: title, Description: description, Slug: pollSlug}
-			if err := tx.Create(&newPoll).Error; err != nil {
-				return err
-			}
+	r.GET("/v/:slug/results", controllers.ShowResults)
+	r.GET("/api/poll/:slug/results", controllers.GetPollResultsAPI)
 
-			for _, opt := range options {
-				if opt == "" {
-					continue
-				}
-				if err := tx.Create(&Option{PollID: newPoll.ID, Value: opt}).Error; err != nil {
-					return err
-				}
-			}
-			return nil
-		})
+	adminRoutes := r.Group("/admin")
+	adminRoutes.Use(middlewares.AuthRequired())
+	{
+		adminRoutes.GET("/dashboard", controllers.Dashboard)
+		adminRoutes.GET("/poll/create", controllers.ShowCreatePoll)
+		adminRoutes.POST("/poll/create", controllers.ProcessCreatePoll)
 
-		if err != nil {
-			c.String(http.StatusInternalServerError, "Gagal simpan data")
-			return
-		}
-		c.Redirect(http.StatusMovedPermanently, "/v/"+pollSlug)
-	})
+		adminRoutes.POST("/poll/:id/close", controllers.ClosePoll)
+		adminRoutes.POST("/poll/:id/delete", controllers.DeletePoll)
+	}
 
-	r.GET("/v/:slug", func(c *gin.Context) {
-		var poll Poll
-		if err := DB.Preload("Options").Where("slug = ?", c.Param("slug")).First(&poll).Error; err != nil {
-			c.String(http.StatusNotFound, "Polling tidak ditemukan")
-			return
-		}
-		c.HTML(http.StatusOK, "voting.html", gin.H{"Poll": poll})
-	})
-
-	r.POST("/vote/:poll_id", func(c *gin.Context) {
-		pollID, _ := strconv.Atoi(c.Param("poll_id"))
-		optionID, _ := strconv.Atoi(c.PostForm("option_id"))
-
-		var poll Poll
-		DB.First(&poll, pollID)
-
-		DB.Model(&Option{}).Where("id = ? AND poll_id = ?", optionID, pollID).UpdateColumn("vote_count", gorm.Expr("vote_count + 1"))
-
-		DB.Create(&Vote{
-			PollID:     uint(pollID),
-			OptionID:   uint(optionID),
-			Identifier: c.ClientIP(),
-		})
-
-		c.Redirect(http.StatusSeeOther, "/v/"+poll.Slug+"/results")
-	})
-
-	r.GET("/v/:slug/results", func(c *gin.Context) {
-		var poll Poll
-		if err := DB.Preload("Options").Where("slug = ?", c.Param("slug")).First(&poll).Error; err != nil {
-			c.String(http.StatusNotFound, "Polling tidak ditemukan")
-			return
-		}
-
-		var totalVotes int
-		for _, opt := range poll.Options {
-			totalVotes += opt.VoteCount
-		}
-
-		c.HTML(http.StatusOK, "results.html", gin.H{
-			"Poll":       poll,
-			"TotalVotes": totalVotes,
-		})
-	})
-
+	fmt.Println("Server backend berjalan di http://localhost:8080")
 	r.Run(":8080")
 }
