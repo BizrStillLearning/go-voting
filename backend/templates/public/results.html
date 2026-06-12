@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ .Title }} - GoVoting</title>
+    <link rel="stylesheet" href="/assets/css/output.css">
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen p-4 flex flex-col items-center justify-center">
+
+<div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-3"></div>
+
+<div class="bg-white p-8 md:p-10 rounded-[2.5rem] shadow-xl w-full max-w-3xl border border-slate-200">
+    <div class="flex items-center gap-3 mb-2">
+            <span class="relative flex h-3 w-3">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+            </span>
+        <span class="text-sm font-black text-green-600 tracking-wider uppercase">Live Update</span>
+    </div>
+
+    <h1 class="text-3xl md:text-4xl font-black text-indigo-900">{{ .Poll.Title }}</h1>
+    <p class="text-slate-500 font-bold mb-8">Total Suara Masuk: <span id="total-votes-ui" class="text-indigo-600 text-xl">0</span></p>
+
+    <div id="options-container" class="space-y-6">
+        {{ range .Poll.Options }}
+        <div class="relative">
+            <div class="flex justify-between items-end mb-2">
+                <span class="font-bold text-slate-700 text-lg">{{ .Value }}</span>
+                <div class="text-right">
+                    <span id="count-{{ .ID }}" class="text-indigo-600 font-black text-xl">0</span>
+                    <span class="text-slate-400 text-sm font-bold">suara</span>
+                    <span id="percent-{{ .ID }}" class="ml-2 inline-block bg-indigo-50 text-indigo-600 px-2 py-1 rounded-md text-xs font-black">0%</span>
+                </div>
+            </div>
+            <div class="w-full bg-slate-100 rounded-full h-4 overflow-hidden">
+                <div id="bar-{{ .ID }}" class="bg-indigo-600 h-full w-0 transition-all duration-1000 ease-out rounded-full shadow-[inset_0_-2px_4px_rgba(0,0,0,0.2)]"></div>
+            </div>
+        </div>
+        {{ end }}
+    </div>
+
+    <div class="mt-10 pt-6 border-t border-slate-100 text-center">
+        <a href="/" class="text-slate-400 font-bold hover:text-indigo-600 transition-colors">GoVoting App</a>
+    </div>
+</div>
+
+<script src="/node_modules/lucide/dist/umd/lucide.min.js"></script>
+<script>
+    lucide.createIcons();
+
+    const params = new URLSearchParams(window.location.search);
+    const successMsg = params.get('success');
+    if (successMsg) {
+        const toast = document.createElement('div');
+        toast.className = 'bg-green-500 text-white px-6 py-4 rounded-xl shadow-2xl font-bold flex items-center gap-3 animate-bounce';
+        toast.innerHTML = `<i data-lucide="check-circle"></i> <span>${successMsg}</span>`;
+        document.getElementById('toast-container').appendChild(toast);
+        lucide.createIcons();
+        window.history.replaceState(null, '', window.location.pathname);
+        setTimeout(() => { toast.remove(); }, 4000);
+    }
+
+    const pollSlug = "{{ .Poll.Slug }}";
+
+    async function fetchLiveResults() {
+        try {
+            const response = await fetch(`/api/poll/${pollSlug}/results`);
+            const data = await response.json();
+
+            document.getElementById('total-votes-ui').innerText = data.total_votes;
+
+            data.options.forEach(opt => {
+                const percentage = data.total_votes > 0 ? ((opt.vote_count / data.total_votes) * 100).toFixed(1) : 0;
+
+                document.getElementById(`count-${opt.id}`).innerText = opt.vote_count;
+                document.getElementById(`percent-${opt.id}`).innerText = percentage + '%';
+
+                document.getElementById(`bar-${opt.id}`).style.width = percentage + '%';
+            });
+        } catch (error) {
+            console.error("Gagal mengambil data live:", error);
+        }
+    }
+
+    fetchLiveResults();
+    setInterval(fetchLiveResults, 3000);
+</script>
+</body>
+</html>

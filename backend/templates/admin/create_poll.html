@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ .Title }} - GoVoting</title>
+    <link rel="stylesheet" href="/assets/css/output.css">
+    <script src="/node_modules/lucide/dist/umd/lucide.min.js"></script>
+</head>
+<body class="bg-slate-50 text-slate-900">
+
+<nav class="bg-white border-b border-slate-200 p-4 sticky top-0 z-50">
+    <div class="max-w-4xl mx-auto flex items-center gap-4">
+        <a href="/admin/dashboard" class="p-2 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition-colors">
+            <i data-lucide="arrow-left"></i>
+        </a>
+        <h1 class="text-xl font-black text-indigo-600">Buat Polling Baru</h1>
+    </div>
+</nav>
+
+<main class="max-w-4xl mx-auto p-6 md:p-8">
+    <div class="bg-white p-8 rounded-[2rem] shadow-xl border border-slate-200">
+        <form action="/admin/poll/create" method="POST" class="space-y-6">
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="space-y-2 md:col-span-2">
+                    <label class="block font-bold text-sm uppercase tracking-wider text-slate-500">Judul Voting</label>
+                    <input type="text" name="title" required placeholder="Contoh: Pemilihan Ketua HIMA 2026"
+                           class="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+
+                <div class="space-y-2 md:col-span-2">
+                    <label class="block font-bold text-sm uppercase tracking-wider text-slate-500">Deskripsi</label>
+                    <textarea name="description" rows="2" placeholder="Tuliskan aturan atau penjelasan..."
+                              class="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+                </div>
+
+                <div class="space-y-4">
+                    <label class="block font-bold text-sm uppercase tracking-wider text-slate-500">Pilihan / Kandidat</label>
+                    <div id="options-container" class="space-y-3">
+                        <input type="text" name="options[]" required placeholder="Kandidat 1" class="w-full p-4 bg-white border border-slate-200 rounded-xl">
+                        <input type="text" name="options[]" required placeholder="Kandidat 2" class="w-full p-4 bg-white border border-slate-200 rounded-xl">
+                    </div>
+                    <button type="button" onclick="addOption()" class="flex items-center gap-2 text-indigo-600 font-bold text-sm hover:underline">
+                        <i data-lucide="plus-circle" size="18"></i> Tambah Kandidat
+                    </button>
+                </div>
+
+                <div class="space-y-2 bg-indigo-50 p-6 rounded-2xl border border-indigo-100">
+                    <label class="block font-black text-indigo-900 flex items-center gap-2">
+                        <i data-lucide="shield-check"></i> Jumlah Pemilih (Token)
+                    </label>
+                    <p class="text-sm text-indigo-700 mb-4">Sistem akan men-generate kode unik secara otomatis sebanyak angka yang Anda masukkan.</p>
+                    <input type="number" name="voter_count" min="1" max="1000" value="50" required
+                           class="w-full p-4 bg-white border border-indigo-200 rounded-xl text-xl font-black text-indigo-600 outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div class="space-y-2 bg-slate-900 p-6 rounded-2xl border border-slate-800 text-white shadow-xl">
+                    <label class="block font-black flex items-center gap-2 text-indigo-400">
+                        <i data-lucide="calendar-clock"></i> Batas Waktu (Tenggat)
+                    </label>
+                    <p class="text-xs text-slate-400 mb-4">Voting akan dikunci secara otomatis oleh server setelah melewati waktu yang ditentukan.</p>
+                    <input type="datetime-local" name="expires_at" required
+                           class="w-full p-4 bg-slate-800 border border-slate-700 rounded-xl text-lg font-bold text-white outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+            </div>
+
+            <hr class="border-slate-100 my-8">
+
+            <button type="submit" class="w-full bg-indigo-600 text-white p-5 rounded-2xl font-black text-xl shadow-lg shadow-indigo-500/30 active:scale-95 transition-all">
+                Simpan & Generate Token
+            </button>
+        </form>
+    </div>
+</main>
+
+<script>
+    lucide.createIcons();
+    function addOption() {
+        const container = document.getElementById('options-container');
+        const input = document.createElement('input');
+        input.type = 'text'; input.name = 'options[]'; input.required = true;
+        input.placeholder = `Kandidat ${container.getElementsByTagName('input').length + 1}`;
+        input.className = 'w-full p-4 bg-white border border-slate-200 rounded-xl';
+        container.appendChild(input);
+    }
+</script>
+</body>
+</html>
+
