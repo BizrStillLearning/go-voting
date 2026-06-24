@@ -1,9 +1,13 @@
 package controllers
 
 import (
+	"encoding/base64"
 	"fmt"
 	"math/rand"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"go-voting/internal/config"
@@ -30,6 +34,34 @@ type CreatePollInput struct {
 	VoterCount  int             `json:"voter_count"`
 	ExpiresAt   *time.Time      `json:"expires_at"`
 	Positions   []PositionInput `json:"positions"`
+}
+
+func saveBase64Image(base64Str string) string {
+	if base64Str == "" {
+		return ""
+	}
+
+	parts := strings.SplitN(base64Str, ",", 2)
+	if len(parts) != 2 {
+		return ""
+	}
+
+	decoded, err := base64.StdEncoding.DecodeString(parts[1])
+	if err != nil {
+		return ""
+	}
+
+	uploadDir := "./public/uploads"
+	os.MkdirAll(uploadDir, os.ModePerm)
+
+	filename := fmt.Sprintf("kandidat-%d-%d.jpg", time.Now().Unix(), rand.Intn(10000))
+	filePath := filepath.Join(uploadDir, filename)
+
+	if err := os.WriteFile(filePath, decoded, 0644); err != nil {
+		return ""
+	}
+
+	return "/uploads/" + filename
 }
 
 func CreatePoll(c *gin.Context) {
@@ -66,12 +98,14 @@ func CreatePoll(c *gin.Context) {
 		config.DB.Create(&position)
 
 		for _, optInput := range posInput.Options {
+			savedPhotoPath := saveBase64Image(optInput.PhotoBase64)
+
 			option := models.Option{
 				PositionID: position.ID,
 				Value:      optInput.Value,
 				Vision:     optInput.Vision,
 				Mission:    optInput.Mission,
-				PhotoURL:   optInput.PhotoBase64,
+				PhotoURL:   savedPhotoPath,
 			}
 			config.DB.Create(&option)
 		}
@@ -95,7 +129,6 @@ func GetAdminPolls(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil data polling"})
 		return
 	}
-
 	c.JSON(http.StatusOK, gin.H{"data": polls})
 }
 
@@ -127,9 +160,44 @@ func DeletePoll(c *gin.Context) {
 	config.DB.Unscoped().Where("poll_id = ?", poll.ID).Delete(&models.Position{})
 
 	if err := config.DB.Unscoped().Delete(&poll).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menghapus dari database: " + err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menghapus dari database"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Polling beserta seluruh data kandidat dan token berhasil dibumihanguskan!"})
+	c.JSON(http.StatusOK, gin.H{"message": "Polling bersih"})
+}
+
+func ExportPollCSV(c *gin.Context) {
+	id := c.Param("id")
+
+	var poll models.Poll
+	if err := config.DB.Preload("Positions.Options").Preload("Tokens").First(&poll, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Data tidak ditemukan"})
+		return
+	}
+
+	csvData := "LAPORAN HASIL E-VOTING\n"
+	csvData += "Judul:," + poll.Title + "\n\n"
+
+	csvData += "JABATAN,NAMA KANDIDAT,PEROLEHAN SUARA\n"
+	for _, pos := range poll.Positions {
+		for _, opt := range pos.Options {
+			csvData += fmt.Sprintf("%s,%s,%d\n", pos.Title, opt.Value, opt.VoteCount)
+		}
+	}
+
+	csvData += "\nREKAPITULASI TOKEN,JUMLAH\n"
+	usedTokens := 0
+	for _, t := range poll.Tokens {
+		if t.IsUsed {
+			usedTokens++
+		}
+	}
+	csvData += fmt.Sprintf("Token Terpakai (Suara Sah),%d\n", usedTokens)
+	csvData += fmt.Sprintf("Token Hangus/Sisa,%d\n", len(poll.Tokens)-usedTokens)
+	csvData += fmt.Sprintf("Total Token Disediakan,%d\n", len(poll.Tokens))
+
+	c.Header("Content-Disposition", "attachment; filename=Laporan-"+poll.Slug+".csv")
+	c.Header("Content-Type", "text/csv")
+	c.String(http.StatusOK, csvData)
 }

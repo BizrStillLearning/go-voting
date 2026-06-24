@@ -10,6 +10,20 @@ export default defineNuxtConfig({
         plugins: [tailwindcss()],
     },
 
-    css: ["~/assets/css/main.css"],
-})
+    app: {
+        pageTransition: { name: 'page', mode: 'out-in' }
+    },
 
+    css: ["~/assets/css/main.css"],
+
+    devServer: {
+        host: '0.0.0.0',
+        port: 3000
+    },
+
+    runtimeConfig: {
+        public: {
+            apiBase: process.env.API_BASE_URL || 'http://localhost:8080/api'
+        }
+    }
+})

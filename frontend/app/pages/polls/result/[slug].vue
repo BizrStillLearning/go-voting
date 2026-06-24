@@ -1,153 +1,152 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'nuxt/app'
-import { ArrowLeft, Users, Loader2, AlertTriangle, Trophy, UserCircle2 } from 'lucide-vue-next'
+import { Trophy, AlertTriangle, ArrowLeft, Activity } from 'lucide-vue-next'
+
+definePageMeta({ layout: false })
 
 const route = useRoute()
 const slug = route.params.slug
+const poll = ref(null)
+const error = ref(false)
+let pollingInterval = null
 
-const pollResult = ref(null)
-const isLoading = ref(true)
-const fetchError = ref('')
-let refreshInterval = null
+const getImageUrl = (path) => {
+  if (!path) return ''
+  if (path.startsWith('http')) return path
 
-const getPositionTotal = (options) => {
-  if (!options) return 0
-  return options.reduce((sum, opt) => sum + opt.vote_count, 0)
-}
-
-const getPercentage = (count, total) => {
-  if (total === 0) return 0
-  return ((count / total) * 100).toFixed(1)
-}
-
-const getHighestVote = (options) => {
-  if (!options || options.length === 0) return 0
-  return Math.max(...options.map(opt => opt.vote_count))
+  const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost'
+  const prefix = path.startsWith('/') ? '' : '/'
+  return `http://${host}:8080${prefix}${path}`
 }
 
 const fetchLiveResults = async () => {
   try {
-    const res = await $fetch(`http://localhost:8080/api/poll/${slug}/results`)
-    pollResult.value = res
-  } catch (error) {
-    fetchError.value = "Gagal mengambil data Live. Pastikan server berjalan."
-    console.error(error)
-  } finally {
-    isLoading.value = false
+    const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost'
+    const response = await $fetch(`http://${host}:8080/api/poll/${slug}/results`)
+    poll.value = response.poll || response.data || response
+  } catch (err) {
+    error.value = true
   }
 }
 
 onMounted(() => {
   fetchLiveResults()
-  refreshInterval = setInterval(fetchLiveResults, 3000)
+  pollingInterval = setInterval(fetchLiveResults, 3000)
 })
 
 onUnmounted(() => {
-  clearInterval(refreshInterval)
+  if (pollingInterval) clearInterval(pollingInterval)
 })
+
+const calculatePercentage = (voteCount, totalVotes) => {
+  if (!totalVotes || totalVotes === 0) return 0
+  return Math.round((voteCount / totalVotes) * 100)
+}
+
+const getPositionTotal = (options) => {
+  if (!options) return 0
+  return options.reduce((sum, opt) => sum + opt.vote_count, 0)
+}
 </script>
 
 <template>
-  <div class="min-h-screen bg-slate-900 text-white font-sans flex flex-col selection:bg-indigo-500">
+  <div class="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 font-sans selection:bg-poster-base/20 dark:selection:bg-poster-base/40 pb-12 transition-colors duration-300">
 
-    <header class="p-6 md:p-8 flex items-center justify-between border-b border-slate-800 bg-slate-900/50 backdrop-blur-md sticky top-0 z-10">
-      <NuxtLink to="/dashboard" class="flex items-center gap-2 text-slate-400 hover:text-white transition-colors font-bold bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-xl">
-        <ArrowLeft :size="18" /> Kembali ke Dashboard
+    <Header />
+
+    <div v-if="error" class="flex flex-col items-center justify-center h-[calc(100vh-80px)] text-center p-6">
+      <div class="bg-red-50 dark:bg-poster-base/10 p-6 rounded-full mb-6">
+        <AlertTriangle class="text-poster-base dark:text-poster-light" :size="48" />
+      </div>
+      <h1 class="text-2xl font-bold mb-2 text-slate-900 dark:text-white">Data Tidak Ditemukan</h1>
+      <p class="text-slate-500 dark:text-slate-400 max-w-md">Pemilihan ini mungkin sudah dihapus, ditutup, atau tautan yang Anda masukkan tidak valid.</p>
+      <NuxtLink to="/dashboard" class="mt-6 px-6 py-2 bg-poster-dark dark:bg-poster-base text-white rounded-lg font-medium hover:bg-poster-dark/90 dark:hover:bg-poster-light transition-colors">
+        Kembali ke Dashboard
       </NuxtLink>
+    </div>
 
-      <div class="flex items-center gap-3">
-        <div class="px-4 py-2 bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 rounded-xl font-mono text-sm font-bold tracking-widest uppercase">
-          ID: {{ slug }}
-        </div>
-        <div class="flex items-center gap-2 px-4 py-2 bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl font-black text-sm uppercase tracking-widest shadow-[0_0_15px_rgba(239,68,68,0.3)]">
-          <span class="w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse"></span>
-          LIVE COUNT
-        </div>
-      </div>
-    </header>
+    <div v-else-if="!poll" class="flex flex-col items-center justify-center h-[calc(100vh-80px)]">
+      <div class="w-12 h-12 border-4 border-poster-base dark:border-poster-light border-t-transparent dark:border-t-transparent rounded-full animate-spin mb-4"></div>
+      <p class="text-lg font-medium text-slate-500 dark:text-slate-400 animate-pulse">Memuat data pemilihan...</p>
+    </div>
 
-    <main class="flex-1 max-w-6xl w-full mx-auto p-6 md:p-12 flex flex-col">
-
-      <div v-if="isLoading" class="flex flex-col items-center justify-center py-20 flex-1">
-        <Loader2 class="animate-spin mb-4 text-indigo-500" :size="64" />
-        <p class="text-slate-400 font-bold text-xl">Menghubungkan ke satelit suara...</p>
-      </div>
-
-      <div v-else-if="fetchError" class="text-center py-20 flex-1">
-        <AlertTriangle class="mx-auto text-amber-500 mb-4" :size="80" />
-        <h1 class="text-3xl font-black text-white mb-2">Koneksi Terputus</h1>
-        <p class="text-slate-400 text-lg">{{ fetchError }}</p>
-      </div>
-
-      <div v-else-if="pollResult?.poll">
-
-        <div class="text-center mb-16">
-          <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-400">
-            {{ pollResult.poll.title }}
-          </h1>
-          <div class="inline-flex items-center justify-center gap-4 bg-slate-800/80 border border-slate-700 px-8 py-5 rounded-3xl shadow-2xl backdrop-blur-sm">
-            <Users class="text-indigo-400" :size="36" />
-            <div class="text-left">
-              <p class="text-slate-400 text-sm font-black uppercase tracking-widest">Total Partisipasi Pemilih</p>
-              <p class="text-5xl font-black font-mono text-white tracking-tight">{{ pollResult.total_votes }} <span class="text-lg text-slate-500 font-sans">Suara Masuk</span></p>
-            </div>
+    <div v-else class="max-w-4xl mx-auto p-4 md:p-8 pt-8 md:pt-12">
+      <header class="mb-12 relative text-center md:text-left flex flex-col md:flex-row items-center md:items-start justify-between gap-6">
+        <div>
+          <div class="inline-flex items-center gap-2 px-3 py-1 bg-red-50 dark:bg-poster-base/10 text-poster-base dark:text-poster-light rounded-full text-xs font-bold uppercase tracking-wider mb-4 border border-red-100 dark:border-poster-base/20">
+            <span class="w-2 h-2 rounded-full bg-poster-base dark:bg-poster-light animate-pulse"></span> Live Quick Count
           </div>
+          <h1 class="text-3xl md:text-4xl font-bold mb-2 text-slate-900 dark:text-white">{{ poll.title }}</h1>
+          <p class="text-base text-slate-500 dark:text-slate-400">{{ poll.description || 'Penghitungan suara sedang berlangsung secara real-time.' }}</p>
         </div>
 
-        <div class="space-y-12">
-          <div v-for="pos in pollResult.poll.positions" :key="pos.ID" class="bg-slate-800/40 border border-slate-700/50 p-8 rounded-[3rem] shadow-xl relative overflow-hidden">
+        <NuxtLink to="/dashboard" class="flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:text-poster-base dark:hover:text-poster-light transition-colors bg-white dark:bg-slate-900 hover:bg-red-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 px-4 py-2 rounded-xl text-sm font-medium shadow-sm">
+          <ArrowLeft :size="18" />
+          <span>Kembali</span>
+        </NuxtLink>
+      </header>
 
-            <div class="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+      <div class="space-y-8">
+        <div v-for="position in poll.positions" :key="position.ID" class="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm transition-colors duration-300">
 
-            <div class="flex items-center justify-between mb-8 border-b border-slate-700/50 pb-4">
-              <h2 class="text-3xl font-black text-indigo-300 uppercase tracking-widest">{{ pos.title }}</h2>
-              <span class="text-slate-400 font-bold bg-slate-900/50 px-4 py-2 rounded-xl text-sm border border-slate-700">
-                Total: {{ getPositionTotal(pos.options) }} Suara
-              </span>
-            </div>
-
-            <div class="space-y-6">
-              <div v-for="(opt, index) in pos.options" :key="opt.ID" class="relative group">
-
-                <div class="flex items-center gap-4 mb-3 relative z-10">
-                  <div class="w-12 h-12 rounded-full overflow-hidden border-2 border-slate-600 bg-slate-800 flex-shrink-0">
-                    <img v-if="opt.photo_url" :src="opt.photo_url" class="w-full h-full object-cover" />
-                    <UserCircle2 v-else :size="44" class="text-slate-500 m-auto mt-0.5" />
-                  </div>
-
-                  <div class="flex-1 flex justify-between items-end">
-                    <div class="flex items-center gap-3">
-                      <h3 class="text-2xl font-bold text-slate-200">{{ opt.value }}</h3>
-                      <Trophy v-if="opt.vote_count > 0 && opt.vote_count === getHighestVote(pos.options)" :size="20" class="text-yellow-400 animate-bounce" />
-                    </div>
-                    <div class="text-right">
-                      <span class="text-3xl font-black font-mono text-white">{{ opt.vote_count }}</span>
-                      <span class="text-slate-400 font-bold ml-2">suara</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="w-full h-12 bg-slate-900/80 rounded-full overflow-hidden shadow-inner relative border border-slate-700">
-                  <div class="h-full rounded-full flex items-center justify-end px-4 font-black transition-all duration-1000 ease-out"
-                       :class="[
-                         index % 4 === 0 ? 'bg-gradient-to-r from-blue-600 to-indigo-500' : '',
-                         index % 4 === 1 ? 'bg-gradient-to-r from-teal-500 to-emerald-400' : '',
-                         index % 4 === 2 ? 'bg-gradient-to-r from-amber-500 to-orange-400' : '',
-                         index % 4 === 3 ? 'bg-gradient-to-r from-purple-600 to-pink-500' : ''
-                       ]"
-                       :style="{ width: `${Math.max(getPercentage(opt.vote_count, getPositionTotal(pos.options)), 5)}%` }">
-                    <span class="text-white drop-shadow-md text-lg">{{ getPercentage(opt.vote_count, getPositionTotal(pos.options)) }}%</span>
-                  </div>
-                </div>
-
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 border-b border-slate-100 dark:border-slate-800 pb-4">
+            <div class="flex items-center gap-3">
+              <div class="p-2 bg-red-50 dark:bg-poster-base/10 text-poster-base dark:text-poster-light rounded-lg">
+                <Trophy :size="24" />
               </div>
+              <h2 class="text-2xl font-bold text-slate-800 dark:text-slate-100">{{ position.title }}</h2>
             </div>
+            <div class="inline-flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 px-4 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700">
+              <Activity :size="16" class="text-slate-400 dark:text-slate-500" />
+              Total Suara: <span class="text-slate-900 dark:text-white font-bold">{{ getPositionTotal(position.options) }}</span>
+            </div>
+          </div>
 
+          <div class="space-y-5">
+            <div v-for="(option, index) in position.options" :key="option.ID" class="bg-slate-50/50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 p-5 rounded-xl hover:border-poster-base/30 dark:hover:border-poster-light/30 transition-colors group">
+
+              <div class="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-4">
+                <div class="flex items-center gap-4">
+                  <div class="w-10 h-10 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 font-bold text-lg flex items-center justify-center rounded-lg shadow-sm flex-shrink-0">
+                    {{ index + 1 }}
+                  </div>
+
+                  <div v-if="option.photo_url" class="w-12 h-12 md:w-14 md:h-14 rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 flex-shrink-0 shadow-sm">
+                    <img :src="getImageUrl(option.photo_url)" class="w-full h-full object-cover" />
+                  </div>
+
+                  <h3 class="text-xl font-semibold text-slate-800 dark:text-slate-100">{{ option.value }}</h3>
+                </div>
+
+                <div class="text-left md:text-right flex items-baseline gap-2 md:block">
+                  <span class="text-2xl font-bold text-slate-900 dark:text-white">{{ option.vote_count }}</span>
+                  <span class="text-sm font-medium text-slate-500 dark:text-slate-400">Suara</span>
+                </div>
+              </div>
+
+              <div class="flex items-center gap-4">
+                <div class="flex-grow h-3 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                  <div class="h-full rounded-full transition-all duration-1000 ease-out"
+                       :class="[
+                         index % 4 === 0 ? 'bg-poster-base' : '',
+                         index % 4 === 1 ? 'bg-poster-dark' : '',
+                         index % 4 === 2 ? 'bg-amber-500 dark:bg-amber-400' : '',
+                         index % 4 === 3 ? 'bg-poster-light' : ''
+                       ]"
+                       :style="{ width: `${calculatePercentage(option.vote_count, getPositionTotal(position.options))}%` }">
+                  </div>
+                </div>
+                <div class="w-12 text-right text-sm font-bold text-slate-700 dark:text-slate-300">
+                  {{ calculatePercentage(option.vote_count, getPositionTotal(position.options)) }}%
+                </div>
+              </div>
+
+            </div>
           </div>
         </div>
       </div>
 
-    </main>
+    </div>
   </div>
 </template>

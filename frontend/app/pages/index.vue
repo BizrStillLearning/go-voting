@@ -9,3 +9,4 @@ navigateTo('/login')
     <p class="text-slate-500 font-bold animate-pulse">Mengalihkan...</p>
   </div>
 </template>
+

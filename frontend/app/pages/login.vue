@@ -4,6 +4,10 @@ import { useRouter } from 'nuxt/app'
 import Swal from 'sweetalert2'
 import { Lock, User, Loader2, ShieldCheck } from 'lucide-vue-next'
 
+definePageMeta({
+  layout: false
+})
+
 const router = useRouter()
 
 const form = ref({
@@ -19,8 +23,8 @@ const handleLogin = async () => {
       icon: 'warning',
       title: 'Username Kosong',
       text: 'Harap isi username Anda terlebih dahulu.',
-      confirmButtonColor: '#4f46e5',
-      customClass: { popup: 'rounded-3xl' }
+      confirmButtonColor: '#DE1B1E',
+      customClass: { popup: 'rounded-2xl' }
     })
     return
   }
@@ -30,8 +34,8 @@ const handleLogin = async () => {
       icon: 'warning',
       title: 'Password Kosong',
       text: 'Harap masukkan kata sandi keamanan.',
-      confirmButtonColor: '#4f46e5',
-      customClass: { popup: 'rounded-3xl' }
+      confirmButtonColor: '#DE1B1E',
+      customClass: { popup: 'rounded-2xl' }
     })
     return
   }
@@ -54,7 +58,7 @@ const handleLogin = async () => {
       text: 'Otentikasi berhasil. Mengalihkan ke Dashboard...',
       showConfirmButton: false,
       timer: 1500,
-      customClass: { popup: 'rounded-3xl' }
+      customClass: { popup: 'rounded-2xl' }
     }).then(() => {
       router.push('/dashboard')
     })
@@ -64,8 +68,8 @@ const handleLogin = async () => {
       icon: 'error',
       title: 'Akses Ditolak',
       text: error.data?.error || 'Kredensial tidak valid. Silakan coba lagi.',
-      confirmButtonColor: '#ef4444',
-      customClass: { popup: 'rounded-3xl' }
+      confirmButtonColor: '#A51013',
+      customClass: { popup: 'rounded-2xl' }
     })
     form.value.password = ''
   } finally {
@@ -75,47 +79,45 @@ const handleLogin = async () => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-slate-900 flex items-center justify-center p-4 relative overflow-hidden font-sans">
-
-    <div class="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-indigo-600/20 rounded-full blur-[120px] pointer-events-none"></div>
-    <div class="absolute bottom-0 right-0 w-[600px] h-[400px] bg-blue-600/10 rounded-full blur-[100px] pointer-events-none"></div>
+  <div class="min-h-screen bg-gradient-to-br from-poster-dark via-poster-base to-poster-glow flex items-center justify-center p-4 relative overflow-hidden font-sans">
 
     <div class="w-full max-w-md relative z-10 animate-in slide-in-from-bottom-8 fade-in duration-500">
 
-      <div class="bg-white/10 backdrop-blur-xl border border-white/20 p-8 md:p-10 rounded-[2.5rem] shadow-2xl">
+      <div class="bg-white/95 backdrop-blur-xl border border-white/20 p-8 md:p-10 rounded-2xl shadow-2xl">
 
         <div class="flex flex-col items-center mb-10 text-center">
-          <div class="w-20 h-20 bg-gradient-to-br from-indigo-500 to-blue-600 rounded-3xl flex items-center justify-center mb-6 shadow-lg shadow-indigo-500/30 rotate-3 transition-transform hover:rotate-6">
-            <ShieldCheck class="text-white" :size="40" stroke-width="1.5" />
+          <div class="w-16 h-16 bg-red-50 border border-red-100 rounded-full flex items-center justify-center mb-6 shadow-sm rotate-3 transition-transform hover:rotate-6">
+<!--            <ShieldCheck class="text-poster-base" :size="32" stroke-width="2" />-->
+            <img src="../assets/logo.jpg" alt="" class="rounded-full w-15 h-15">
           </div>
-          <h1 class="text-3xl font-black text-white tracking-tight mb-2">Admin Portal</h1>
-          <p class="text-slate-400 font-medium">Masuk untuk mengelola sistem e-Voting</p>
+          <h1 class="text-2xl font-bold text-slate-900 tracking-tight mb-2">Musykom XVIII</h1>
+          <p class="text-slate-500 font-medium text-sm">Masuk untuk mengelola sistem pemilihan</p>
         </div>
 
-        <form @submit.prevent="handleLogin" class="space-y-6">
+        <form @submit.prevent="handleLogin" class="space-y-5">
 
           <div class="space-y-4">
             <div class="relative group">
-              <div class="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-indigo-400 transition-colors">
+              <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-poster-base transition-colors">
                 <User :size="20" />
               </div>
               <input
                   type="text"
                   v-model="form.username"
                   placeholder="Username"
-                  class="w-full pl-12 pr-5 py-4 bg-slate-800/50 border border-slate-700/50 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:bg-slate-800 outline-none transition-all text-white font-medium placeholder:text-slate-500 shadow-inner"
+                  class="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-poster-base focus:border-poster-base outline-none transition-all text-slate-900 font-medium placeholder:text-slate-400"
               >
             </div>
 
             <div class="relative group">
-              <div class="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-indigo-400 transition-colors">
+              <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-poster-base transition-colors">
                 <Lock :size="20" />
               </div>
               <input
                   type="password"
                   v-model="form.password"
                   placeholder="Kata Sandi"
-                  class="w-full pl-12 pr-5 py-4 bg-slate-800/50 border border-slate-700/50 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:bg-slate-800 outline-none transition-all text-white font-medium placeholder:text-slate-500 shadow-inner"
+                  class="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-poster-base focus:border-poster-base outline-none transition-all text-slate-900 font-medium placeholder:text-slate-400"
               >
             </div>
           </div>
@@ -123,17 +125,17 @@ const handleLogin = async () => {
           <button
               type="submit"
               :disabled="isLoading"
-              class="w-full bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-700 disabled:text-slate-400 disabled:cursor-not-allowed text-white py-4 rounded-2xl font-black text-lg transition-all shadow-lg shadow-indigo-600/25 active:scale-[0.98] flex items-center justify-center gap-3 mt-4"
+              class="w-full bg-poster-dark hover:bg-poster-dark/90 disabled:bg-slate-300 disabled:text-slate-500 disabled:cursor-not-allowed text-white py-3.5 rounded-xl font-bold text-base transition-all shadow-sm active:scale-[0.98] flex items-center justify-center gap-2 mt-2"
           >
-            <Loader2 v-if="isLoading" class="animate-spin" :size="24" />
-            <span>{{ isLoading ? 'Mengesahkan...' : 'Masuk ke Sistem' }}</span>
+            <Loader2 v-if="isLoading" class="animate-spin" :size="20" />
+            <span>{{ isLoading ? 'Mengesahkan...' : 'Login' }}</span>
           </button>
 
         </form>
 
       </div>
 
-      <p class="text-center text-slate-500 text-sm font-medium mt-8">
+      <p class="text-center text-white/90 text-xs font-medium mt-8 drop-shadow-md">
         &copy; 2026 eVoting System. Secure Access.
       </p>
 

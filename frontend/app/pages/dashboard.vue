@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import { PlusCircle, Users, Key, PieChart, Trash2, Loader2, BarChart3, Activity, ShieldCheck } from 'lucide-vue-next'
-import Swal from 'sweetalert2' // Import SweetAlert2
+import { PlusCircle, Users, Key, PieChart, Trash2, Loader2, BarChart3, Activity, ShieldCheck, Lock, Download, Printer, Link, ExternalLink } from 'lucide-vue-next'
+import Swal from 'sweetalert2'
 import { usePollStore } from '~/stores/poll'
 import { useAuthStore } from '~/stores/auth'
 import { storeToRefs } from 'pinia'
@@ -43,7 +43,9 @@ const handleCreatePoll = async (formData) => {
       text: 'Pemilihan baru siap digunakan.',
       timer: 2000,
       showConfirmButton: false,
-      customClass: { popup: 'rounded-3xl' }
+      background: document.documentElement.classList.contains('dark') ? '#1e293b' : '#ffffff',
+      color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
+      customClass: { popup: 'rounded-2xl' }
     })
 
   } catch (error) {
@@ -51,22 +53,106 @@ const handleCreatePoll = async (formData) => {
       icon: 'error',
       title: 'Gagal Membuat',
       text: error.data?.error || "Terjadi kesalahan saat menyimpan data.",
-      customClass: { popup: 'rounded-3xl' }
+      background: document.documentElement.classList.contains('dark') ? '#1e293b' : '#ffffff',
+      color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
+      customClass: { popup: 'rounded-2xl' }
     })
   }
 }
 
-const handleDeletePoll = async (pollID) => {
+const handleClosePoll = async (pollID) => {
+  const isDarkMode = document.documentElement.classList.contains('dark')
   const result = await Swal.fire({
-    title: 'Hapus Permanen?',
-    text: "Semua data suara, jabatan, dan token akan lenyap. Anda tidak dapat mengembalikannya!",
+    title: 'Tutup Pemilihan?',
+    text: "Pemilih tidak akan bisa memasukkan token lagi setelah ini ditutup.",
     icon: 'warning',
     showCancelButton: true,
-    confirmButtonColor: '#ef4444',
-    cancelButtonColor: '#94a3b8',
-    confirmButtonText: 'Ya, Bumihanguskan!',
-    cancelButtonText: 'Batal',
-    customClass: { popup: 'rounded-3xl' }
+    confirmButtonColor: '#f59e0b',
+    cancelButtonColor: isDarkMode ? '#334155' : '#94a3b8',
+    confirmButtonText: 'Ya, Tutup!',
+    cancelButtonText: `<span style="color: ${isDarkMode ? '#cbd5e1' : '#f8fafc'};">Batal</span>`,
+    background: isDarkMode ? '#1e293b' : '#ffffff',
+    color: isDarkMode ? '#f8fafc' : '#0f172a',
+    customClass: { popup: 'rounded-2xl' }
+  })
+
+  if (!result.isConfirmed) return
+
+  try {
+    await $fetch(`http://localhost:8080/api/admin/poll/${pollID}/close`, {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${authStore.token}` }
+    })
+    pollStore.fetchPolls()
+    Swal.fire({
+      icon: 'success',
+      title: 'Ditutup!',
+      text: 'Pemilihan telah resmi dihentikan.',
+      timer: 1500,
+      showConfirmButton: false,
+      background: isDarkMode ? '#1e293b' : '#ffffff',
+      color: isDarkMode ? '#f8fafc' : '#0f172a',
+      customClass: { popup: 'rounded-2xl' }
+    })
+  } catch (error) {
+    Swal.fire({ icon: 'error', title: 'Gagal', text: 'Terjadi kesalahan sistem.', background: isDarkMode ? '#1e293b' : '#ffffff', color: isDarkMode ? '#f8fafc' : '#0f172a', customClass: { popup: 'rounded-2xl' } })
+  }
+}
+
+const handleExportCSV = async (pollID) => {
+  try {
+    const blob = await $fetch(`http://localhost:8080/api/admin/poll/${pollID}/export`, {
+      headers: { Authorization: `Bearer ${authStore.token}` },
+      responseType: 'blob'
+    })
+
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', `laporan-evoting-${pollID}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+
+  } catch (error) {
+    Swal.fire({ icon: 'error', title: 'Gagal Unduh', text: 'Tidak dapat mengekspor laporan dari server.', customClass: { popup: 'rounded-2xl' } })
+  }
+}
+
+const handleCopyLink = (slug) => {
+  const url = `${window.location.origin}/v/${slug}`
+
+  navigator.clipboard.writeText(url).then(() => {
+    const isDarkMode = document.documentElement.classList.contains('dark')
+    Swal.fire({
+      icon: 'success',
+      title: 'Tautan Tersalin!',
+      text: 'Tempel (Paste) tautan ini di laptop bilik suara.',
+      timer: 2000,
+      showConfirmButton: false,
+      background: isDarkMode ? '#1e293b' : '#ffffff',
+      color: isDarkMode ? '#f8fafc' : '#0f172a',
+      customClass: { popup: 'rounded-2xl' }
+    })
+  }).catch(() => {
+    Swal.fire({ icon: 'error', title: 'Gagal', text: 'Tidak dapat menyalin tautan.' })
+  })
+}
+
+const handleDeletePoll = async (pollID) => {
+  const isDarkMode = document.documentElement.classList.contains('dark')
+  const result = await Swal.fire({
+    title: 'Hapus Permanen?',
+    text: "Semua data akan lenyap. Anda tidak dapat mengembalikannya!",
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#A51013',
+    cancelButtonColor: isDarkMode ? '#334155' : '#94a3b8',
+    confirmButtonText: 'Ya, Hapus!',
+    cancelButtonText: `<span style="color: ${isDarkMode ? '#cbd5e1' : '#f8fafc'};">Batal</span>`,
+    background: isDarkMode ? '#1e293b' : '#ffffff',
+    color: isDarkMode ? '#f8fafc' : '#0f172a',
+    customClass: { popup: 'rounded-2xl' }
   })
 
   if (!result.isConfirmed) return
@@ -81,148 +167,155 @@ const handleDeletePoll = async (pollID) => {
     Swal.fire({
       icon: 'success',
       title: 'Terhapus!',
-      text: 'Data pemilihan berhasil dibersihkan dari server.',
+      text: 'Data pemilihan berhasil dibersihkan.',
       timer: 1500,
       showConfirmButton: false,
-      customClass: { popup: 'rounded-3xl' }
+      background: isDarkMode ? '#1e293b' : '#ffffff',
+      color: isDarkMode ? '#f8fafc' : '#0f172a',
+      customClass: { popup: 'rounded-2xl' }
     })
   } catch (error) {
     Swal.fire({
       icon: 'error',
       title: 'Gagal Menghapus',
       text: error.data?.error || "Terjadi kesalahan koneksi database.",
-      customClass: { popup: 'rounded-3xl' }
+      background: isDarkMode ? '#1e293b' : '#ffffff',
+      color: isDarkMode ? '#f8fafc' : '#0f172a',
+      customClass: { popup: 'rounded-2xl' }
     })
   }
 }
 </script>
 
 <template>
-  <div class="flex h-screen bg-[#f8fafc] font-sans overflow-hidden selection:bg-indigo-200">
-    <Sidebar />
+  <div class="font-sans text-slate-800 dark:text-slate-200 transition-colors duration-300">
 
-    <div class="flex-1 flex flex-col h-screen overflow-hidden relative">
-      <Header />
+    <div class="mb-10">
+      <div class="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
+        <div>
+          <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Tinjauan Sistem</h1>
+          <p class="text-slate-500 dark:text-slate-400 font-medium mt-1 text-base">Pusat kendali seluruh aktivitas pemilihan digital.</p>
+        </div>
+        <button @click="showModal = true" class="flex items-center justify-center gap-2 bg-poster-base dark:bg-poster-light hover:bg-poster-dark dark:hover:bg-poster-base text-white px-6 py-3 rounded-xl font-semibold shadow-sm active:scale-95 transition-all duration-200 cursor-pointer">
+          <PlusCircle :size="18" /> Buat Pemilihan
+        </button>
+      </div>
 
-      <main class="flex-1 overflow-x-hidden overflow-y-auto p-6 md:p-8 lg:px-12">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <div class="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 flex items-center gap-5 shadow-sm hover:shadow-md transition-shadow">
+          <div class="p-3.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl"><BarChart3 :size="24" /></div>
+          <div>
+            <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Total Acara</p>
+            <p class="text-2xl font-bold text-slate-900 dark:text-white">{{ totalPolls }}</p>
+          </div>
+        </div>
 
-        <div class="mb-10">
-          <div class="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
-            <div>
-              <h1 class="text-4xl font-black text-slate-800 tracking-tight">Tinjauan Sistem</h1>
-              <p class="text-slate-500 font-medium mt-2 text-lg">Pusat kendali seluruh aktivitas pemilihan digital.</p>
+        <div class="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 flex items-center gap-5 shadow-sm hover:shadow-md transition-shadow">
+          <div class="p-3.5 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-xl"><Activity :size="24" /></div>
+          <div>
+            <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Berjalan</p>
+            <p class="text-2xl font-bold text-slate-900 dark:text-white">{{ activePolls }}</p>
+          </div>
+        </div>
+
+        <div class="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 flex items-center gap-5 shadow-sm hover:shadow-md transition-shadow">
+          <div class="p-3.5 bg-red-50 dark:bg-poster-base/10 text-poster-base dark:text-poster-light rounded-xl"><ShieldCheck :size="24" /></div>
+          <div>
+            <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Suara Masuk</p>
+            <p class="text-2xl font-bold text-slate-900 dark:text-white">{{ totalVotesCast }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="isLoading" class="flex flex-col items-center justify-center py-20 text-slate-500 dark:text-slate-400">
+      <Loader2 class="animate-spin mb-4 text-poster-base dark:text-poster-light" :size="36" />
+      <p class="font-medium">Memuat data...</p>
+    </div>
+
+    <div v-else-if="polls?.length === 0" class="max-w-2xl mx-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 border-dashed rounded-2xl p-12 flex flex-col items-center justify-center text-center">
+      <div class="bg-slate-50 dark:bg-slate-800 p-4 rounded-full mb-5">
+        <PlusCircle :size="36" class="text-slate-400 dark:text-slate-500" />
+      </div>
+      <h3 class="text-xl font-bold text-slate-900 dark:text-white mb-2">Belum Ada Pemilihan</h3>
+      <p class="text-slate-500 dark:text-slate-400 mb-6">Anda belum memulai kegiatan pemilihan apa pun.</p>
+      <button @click="showModal = true" class="text-poster-base dark:text-poster-light font-bold hover:underline">
+        Buat pemilihan pertama Anda
+      </button>
+    </div>
+
+    <div v-else class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+      <div v-for="poll in polls" :key="poll.ID" class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl shadow-sm hover:shadow-md transition-all duration-200 flex flex-col h-full relative group">
+
+        <div class="flex justify-between items-start mb-4">
+          <span v-if="poll.is_active" class="px-2.5 py-1 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20 rounded-lg text-[11px] font-bold uppercase tracking-wide flex items-center gap-1.5">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> LIVE
+          </span>
+          <span v-else class="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-lg text-[11px] font-bold uppercase tracking-wide border border-slate-200 dark:border-slate-700">
+            Selesai
+          </span>
+
+          <span class="text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-100 dark:border-slate-800">
+            {{ poll.positions?.reduce((total, pos) => total + (pos.options?.length || 0), 0) || 0 }} Kandidat
+          </span>
+        </div>
+
+        <div class="flex-1 mb-6">
+          <h3 class="text-xl font-bold mb-1.5 text-slate-900 dark:text-white leading-snug">{{ poll.title }}</h3>
+          <p class="text-slate-500 dark:text-slate-400 text-sm mb-5 line-clamp-2">{{ poll.description || 'Tanpa deskripsi khusus.' }}</p>
+
+          <div class="mb-2">
+            <div class="flex justify-between items-end mb-2">
+              <span class="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Partisipasi Token</span>
+              <span class="text-sm font-semibold text-slate-800 dark:text-slate-200">{{ poll.tokens?.filter(t => t.is_used).length || 0 }} / {{ poll.tokens?.length || 0 }}</span>
             </div>
-            <button @click="showModal = true" class="flex items-center justify-center gap-2 bg-slate-900 hover:bg-indigo-600 text-white px-8 py-4 rounded-2xl font-black shadow-xl shadow-slate-900/10 hover:shadow-indigo-600/30 hover:-translate-y-1 transition-all duration-300 cursor-pointer">
-              <PlusCircle :size="22" /> Buat Pemilihan Baru
+            <div class="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+              <div class="h-full bg-poster-base dark:bg-poster-light rounded-full transition-all duration-500"
+                   :style="{ width: `${ poll.tokens?.length ? ((poll.tokens.filter(t => t.is_used).length / poll.tokens.length) * 100) : 0 }%` }">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2 mt-auto pt-5 border-t border-slate-100 dark:border-slate-800">
+          <div v-if="poll.is_active" class="col-span-2 flex gap-2 mb-2">
+            <NuxtLink :to="`/v/${poll.slug}`" target="_blank" class="flex-1 flex items-center justify-center gap-1.5 bg-poster-base hover:bg-poster-dark text-white py-2 rounded-xl text-xs font-bold transition-colors shadow-sm">
+              <ExternalLink :size="14" /> Buka Bilik Suara
+            </NuxtLink>
+            <button @click="handleCopyLink(poll.slug)" class="flex-1 flex items-center justify-center gap-1.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 py-2 rounded-xl text-xs font-bold transition-colors">
+              <Link :size="14" /> Salin Tautan
             </button>
           </div>
 
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div class="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-5 relative overflow-hidden group">
-              <div class="absolute -right-6 -top-6 w-24 h-24 bg-blue-50 rounded-full group-hover:scale-150 transition-transform duration-500"></div>
-              <div class="p-4 bg-blue-100 text-blue-600 rounded-2xl relative z-10"><BarChart3 :size="28" /></div>
-              <div class="relative z-10">
-                <p class="text-sm font-black text-slate-400 uppercase tracking-widest mb-1">Total Pemilihan</p>
-                <p class="text-3xl font-black text-slate-800">{{ totalPolls }} <span class="text-sm text-slate-400 font-medium">Acara</span></p>
-              </div>
-            </div>
+          <NuxtLink :to="`/polls/result/${poll.slug}`" target="_blank" class="flex items-center justify-center gap-1.5 bg-slate-900 dark:bg-slate-800 text-white py-2 rounded-xl text-xs font-medium hover:bg-slate-800 dark:hover:bg-slate-700 transition-colors">
+            <PieChart :size="14" /> Monitor
+          </NuxtLink>
 
-            <div class="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-5 relative overflow-hidden group">
-              <div class="absolute -right-6 -top-6 w-24 h-24 bg-emerald-50 rounded-full group-hover:scale-150 transition-transform duration-500"></div>
-              <div class="p-4 bg-emerald-100 text-emerald-600 rounded-2xl relative z-10"><Activity :size="28" /></div>
-              <div class="relative z-10">
-                <p class="text-sm font-black text-slate-400 uppercase tracking-widest mb-1">Pemilihan Aktif</p>
-                <p class="text-3xl font-black text-slate-800">{{ activePolls }} <span class="text-sm text-slate-400 font-medium">Berjalan</span></p>
-              </div>
-            </div>
+          <button @click="handleExportCSV(poll.ID)" class="flex items-center justify-center gap-1.5 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 py-2 rounded-xl text-xs font-medium transition-colors">
+            <Download :size="14" /> CSV
+          </button>
 
-            <div class="bg-indigo-600 p-6 rounded-[2rem] shadow-xl shadow-indigo-600/20 flex items-center gap-5 relative overflow-hidden group text-white">
-              <div class="absolute -right-6 -top-6 w-32 h-32 bg-white/10 rounded-full group-hover:scale-150 transition-transform duration-700"></div>
-              <div class="p-4 bg-white/20 backdrop-blur-sm text-white rounded-2xl relative z-10"><ShieldCheck :size="28" /></div>
-              <div class="relative z-10">
-                <p class="text-sm font-black text-indigo-200 uppercase tracking-widest mb-1">Total Suara Masuk</p>
-                <p class="text-3xl font-black">{{ totalVotesCast }} <span class="text-sm text-indigo-200 font-medium">Pemilih</span></p>
-              </div>
-            </div>
-          </div>
+          <NuxtLink :to="`/print/${poll.ID}`" target="_blank" class="flex items-center justify-center gap-1.5 bg-red-50 dark:bg-poster-base/10 text-poster-base dark:text-poster-light hover:bg-red-100 dark:hover:bg-poster-base/20 py-2 rounded-xl text-xs font-medium transition-colors col-span-2">
+            <Printer :size="14" /> Cetak Token
+          </NuxtLink>
+
+          <button v-if="poll.is_active" @click="handleClosePoll(poll.ID)" class="flex items-center justify-center gap-1.5 bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-500/20 py-2 rounded-xl text-xs font-medium transition-colors col-span-2">
+            <Lock :size="14" /> Hentikan Pemilihan
+          </button>
+
+          <button @click="handleDeletePoll(poll.ID)" class="flex items-center justify-center gap-1.5 text-slate-400 hover:text-poster-dark dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 py-2 rounded-xl text-xs font-medium transition-colors col-span-2">
+            <Trash2 :size="14" /> Hapus Permanen
+          </button>
         </div>
 
-        <div class="h-px w-full bg-slate-200 mb-10"></div>
-
-        <div v-if="isLoading" class="flex flex-col items-center justify-center py-20 text-slate-400">
-          <Loader2 class="animate-spin mb-4 text-indigo-500" :size="48" />
-          <p class="font-bold text-lg">Membaca arsip satelit...</p>
-        </div>
-
-        <div v-else-if="polls.length === 0" class="max-w-2xl mx-auto bg-white border-2 border-slate-200 border-dashed rounded-[3rem] p-16 flex flex-col items-center justify-center text-center shadow-sm">
-          <div class="bg-slate-50 p-6 rounded-full mb-6">
-            <PlusCircle :size="56" class="text-slate-300" />
-          </div>
-          <h3 class="text-3xl font-black text-slate-800 mb-3">Server Bersih</h3>
-          <p class="text-slate-500 text-lg">Anda belum memulai kegiatan pemilihan apa pun. Jadilah inisiator demokrasi hari ini.</p>
-        </div>
-
-        <div v-else class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8">
-          <div v-for="poll in polls" :key="poll.ID" class="bg-white border border-slate-100 p-8 rounded-[2.5rem] shadow-sm hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-300 group flex flex-col h-full relative overflow-hidden">
-
-            <div class="absolute top-0 left-0 w-full h-1.5" :class="poll.is_active ? 'bg-emerald-400' : 'bg-slate-300'"></div>
-
-            <div class="flex justify-between items-start mb-6">
-              <span v-if="poll.is_active" class="px-4 py-1.5 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-full text-xs font-black uppercase tracking-widest flex items-center gap-1.5">
-                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> LIVE
-              </span>
-              <span v-else class="px-4 py-1.5 bg-slate-50 text-slate-500 border border-slate-200 rounded-full text-xs font-black uppercase tracking-widest">
-                Ditutup
-              </span>
-
-              <span class="text-sm font-black text-slate-400 flex items-center gap-1 bg-slate-50 px-3 py-1 rounded-lg">
-                <Users :size="14" /> {{ poll.positions?.reduce((total, pos) => total + (pos.options?.length || 0), 0) || 0 }} Kandidat
-              </span>
-            </div>
-
-            <div class="flex-1">
-              <h3 class="text-2xl font-black mb-3 text-slate-800 leading-tight group-hover:text-indigo-600 transition-colors">{{ poll.title }}</h3>
-              <p class="text-slate-500 text-sm font-medium mb-8 line-clamp-2 leading-relaxed">{{ poll.description || 'Tidak ada catatan khusus untuk pemilihan ini.' }}</p>
-
-              <div class="mb-8 p-5 bg-slate-50 rounded-3xl border border-slate-100 relative overflow-hidden">
-                <div class="flex justify-between items-end mb-3 relative z-10">
-                  <span class="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><Key :size="14" /> Partisipasi (Token)</span>
-                  <div class="text-right">
-                    <span class="text-xl font-black text-slate-800">{{ poll.tokens?.filter(t => t.is_used).length || 0 }}</span>
-                    <span class="text-sm font-bold text-slate-400"> / {{ poll.tokens?.length || 0 }}</span>
-                  </div>
-                </div>
-                <div class="w-full h-3 bg-white rounded-full overflow-hidden shadow-inner border border-slate-200 relative z-10">
-                  <div class="h-full bg-gradient-to-r from-indigo-500 to-blue-500 transition-all duration-1000 ease-out"
-                       :style="{ width: `${ poll.tokens?.length ? ((poll.tokens.filter(t => t.is_used).length / poll.tokens.length) * 100) : 0 }%` }">
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div class="grid grid-cols-2 gap-3 mt-auto pt-4">
-              <NuxtLink :to="`/results/${poll.slug}`" target="_blank" class="flex items-center justify-center gap-2 bg-slate-900 text-white py-3.5 rounded-2xl text-sm font-black hover:bg-indigo-600 shadow-lg shadow-slate-900/10 active:scale-95 transition-all">
-                <PieChart :size="18" /> Monitor Live
-              </NuxtLink>
-
-              <button @click="handleDeletePoll(poll.ID)" class="flex items-center justify-center gap-2 bg-white border-2 border-slate-200 text-slate-600 hover:text-red-600 hover:border-red-200 hover:bg-red-50 py-3.5 rounded-2xl text-sm font-black active:scale-95 transition-all">
-                <Trash2 :size="18" /> Hapus
-              </button>
-
-              <NuxtLink :to="`/print/${poll.ID}`" target="_blank" class="flex items-center justify-center gap-2 bg-indigo-50 text-indigo-600 py-3.5 rounded-2xl text-sm font-black hover:bg-indigo-100 active:scale-95 transition-all col-span-2 border border-indigo-100 mt-1">
-                🖨️ Cetak Token Fisik
-              </NuxtLink>
-            </div>
-
-          </div>
-        </div>
-
-      </main>
+      </div>
     </div>
+
+    <CreatePollModal
+        v-if="showModal"
+        @close="showModal = false"
+        @submit="handleCreatePoll"
+    />
+
   </div>
-  <CreatePollModal
-      v-if="showModal"
-      @close="showModal = false"
-      @submit="handleCreatePoll"
-  />
 </template>

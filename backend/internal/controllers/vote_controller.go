@@ -1,13 +1,14 @@
 package controllers
 
 import (
-	"net/http"
-
 	"go-voting/internal/config"
 	"go-voting/internal/models"
+	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type VoteItem struct {
@@ -44,18 +45,23 @@ func SubmitVote(c *gin.Context) {
 		return
 	}
 
+	tx := config.DB.Begin()
+
 	var token models.VoterToken
-	if err := config.DB.Where("poll_id = ? AND token_string = ?", poll.ID, input.Token).First(&token).Error; err != nil {
+
+	cleanToken := strings.ToUpper(strings.TrimSpace(input.Token))
+
+	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("poll_id = ? AND token_string = ?", poll.ID, cleanToken).First(&token).Error; err != nil {
+		tx.Rollback()
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Token tidak valid atau salah"})
 		return
 	}
 
 	if token.IsUsed {
+		tx.Rollback()
 		c.JSON(http.StatusForbidden, gin.H{"error": "Token sudah pernah digunakan!"})
 		return
 	}
-
-	tx := config.DB.Begin()
 
 	for _, voteItem := range input.Votes {
 		if err := tx.Model(&models.Option{}).Where("id = ? AND position_id = ?", voteItem.OptionID, voteItem.PositionID).
@@ -64,15 +70,6 @@ func SubmitVote(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal merekam suara"})
 			return
 		}
-
-		voteLog := models.Vote{
-			PollID:     poll.ID,
-			PositionID: voteItem.PositionID,
-			OptionID:   voteItem.OptionID,
-			TokenID:    token.ID,
-			Token:      token.TokenString,
-		}
-		tx.Create(&voteLog)
 	}
 
 	if err := tx.Model(&token).Update("is_used", true).Error; err != nil {
@@ -125,8 +122,10 @@ func VerifyToken(c *gin.Context) {
 		return
 	}
 
+	cleanToken := strings.ToUpper(strings.TrimSpace(input.Token))
+
 	var token models.VoterToken
-	if err := config.DB.Where("poll_id = ? AND token_string = ?", pollID, input.Token).First(&token).Error; err != nil {
+	if err := config.DB.Where("poll_id = ? AND token_string = ?", pollID, cleanToken).First(&token).Error; err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Token tidak valid atau salah!"})
 		return
 	}

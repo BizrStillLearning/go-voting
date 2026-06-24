@@ -1,32 +1,63 @@
 <script setup>
-import { Search, Bell, User } from 'lucide-vue-next'
+import { ref, onMounted } from 'vue'
+import { Menu, ShieldCheck, UserCircle, Sun, Moon } from 'lucide-vue-next'
+import { useAuthStore } from '~/stores/auth'
+
+const isCollapsed = useState('sidebar-collapsed', () => false)
+const authStore = useAuthStore()
+
+const username = authStore.user?.username || 'Administrator'
+const role = authStore.user?.role || 'Super Admin'
+
+const isDark = ref(false)
+
+const toggleTheme = () => {
+  isDark.value = !isDark.value
+  if (isDark.value) {
+    document.documentElement.classList.add('dark')
+    localStorage.setItem('theme', 'dark')
+  } else {
+    document.documentElement.classList.remove('dark')
+    localStorage.setItem('theme', 'light')
+  }
+}
+
+onMounted(() => {
+  if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+    isDark.value = true
+    document.documentElement.classList.add('dark')
+  } else {
+    isDark.value = false
+    document.documentElement.classList.remove('dark')
+  }
+})
 </script>
 
 <template>
-  <header class="h-20 bg-white/80 backdrop-blur-md border-b border-slate-200 flex items-center justify-between px-8 sticky top-0 z-40">
+  <header class="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 h-20 flex items-center justify-between px-6 z-10 sticky top-0 shadow-sm transition-colors duration-300">
 
-    <div class="hidden md:flex items-center bg-slate-100 px-4 py-2.5 rounded-2xl w-96 border border-slate-200 focus-within:border-indigo-500 focus-within:bg-white transition-all">
-      <Search :size="18" class="text-slate-400 mr-3" />
-      <input type="text" placeholder="Cari data polling atau token..." class="bg-transparent border-none outline-none w-full text-sm font-medium text-slate-700">
+    <div class="flex items-center gap-4">
+      <button @click="isCollapsed = !isCollapsed" class="p-2.5 text-slate-500 dark:text-slate-400 hover:text-poster-base dark:hover:text-poster-light hover:bg-red-50 dark:hover:bg-slate-800 rounded-xl transition-all cursor-pointer">
+        <Menu :size="24" />
+      </button>
     </div>
 
-    <div class="flex items-center gap-6 ml-auto">
-      <button class="relative p-2 text-slate-400 hover:text-indigo-600 transition-colors cursor-pointer">
-        <Bell :size="22" />
-        <span class="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
+    <div class="flex items-center gap-2 md:gap-5">
+      <button @click="toggleTheme" class="p-2.5 text-slate-500 dark:text-slate-400 hover:text-poster-glow dark:hover:text-poster-glow hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all cursor-pointer" title="Ganti Tema">
+        <Sun v-if="isDark" :size="20" />
+        <Moon v-else :size="20" />
       </button>
 
-      <div class="h-8 w-px bg-slate-200"></div>
-
-      <div class="flex items-center gap-3 cursor-pointer group">
-        <div class="text-right hidden sm:block">
-          <p class="text-sm font-black text-slate-800 group-hover:text-indigo-600 transition-colors">Admin Utama</p>
-          <p class="text-xs font-bold text-slate-400">Superuser</p>
+      <div class="flex items-center gap-3 border-l border-slate-200 dark:border-slate-800 pl-4 md:pl-5 transition-colors duration-300">
+        <div class="text-right hidden md:block">
+          <p class="text-sm font-bold text-slate-900 dark:text-white leading-tight transition-colors duration-300">{{ username }}</p>
+          <p class="text-[11px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider transition-colors duration-300">{{ role }}</p>
         </div>
-        <div class="bg-indigo-100 p-2.5 rounded-xl text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-all">
-          <User :size="20" />
+        <div class="w-10 h-10 bg-red-50 dark:bg-slate-800 text-poster-base dark:text-poster-light rounded-xl flex items-center justify-center border border-red-100 dark:border-slate-700 transition-colors duration-300">
+          <UserCircle :size="24" stroke-width="2" />
         </div>
       </div>
     </div>
+
   </header>
 </template>
